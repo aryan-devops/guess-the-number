@@ -44,9 +44,12 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
   const opponentId = room.playerIds.find((id: string) => id !== user?.uid);
   const isMyTurn = match?.currentTurnPlayerId === user?.uid && match?.status === 'in-progress';
   
-  const myTarget = isPlayer1 ? match?.p1Target : match?.p2Target;
   const iAmReady = isPlayer1 ? match?.p1Ready : match?.p2Ready;
-  const opponentIsReady = isPlayer1 ? match?.p2Ready : match?.p1Ready;
+  
+  // The number I am trying to guess
+  const myTarget = isPlayer1 ? match?.p1Target : match?.p2Target;
+  // The number I chose for the opponent
+  const myChosenTarget = isPlayer1 ? match?.p2Target : match?.p1Target;
 
   // Initialize Match Record
   useEffect(() => {
@@ -115,7 +118,7 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
   const handleGuess = async (val: number) => {
     if (!isMyTurn || !db || match?.status !== 'in-progress' || !user || isNaN(val)) return;
 
-    const target = isPlayer1 ? match.p1Target : match.p2Target;
+    const target = myTarget;
     const hint = getHint(val, target);
     const guessId = `guess_${Date.now()}_${user.uid.substring(0, 4)}`;
     
@@ -163,7 +166,9 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
           <AlertTriangle className="w-16 h-16 text-destructive" />
         </div>
         <h2 className="text-3xl font-black text-white mb-2 uppercase italic">Link Severed</h2>
-        <p className="text-muted-foreground mb-8">The other player has disconnected from the arena.</p>
+        <p className="text-muted-foreground mb-8">
+          The player {room.leftBy === user?.uid ? 'you' : 'opponent'} has terminated the battle link.
+        </p>
         <Button onClick={() => router.push('/lobby')} className="bg-primary glow-magenta font-bold">Return to Lobby</Button>
       </div>
     );
@@ -339,8 +344,8 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
                   <p className="text-xl font-bold text-white">{guessesData?.length || 0}</p>
                 </div>
                 <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                  <p className="text-[10px] text-muted-foreground uppercase mb-1">Your Target</p>
-                  <p className="text-xl font-bold text-accent">LOCKED</p>
+                  <p className="text-[10px] text-muted-foreground uppercase mb-1">Your Key for Opponent</p>
+                  <p className="text-xl font-bold text-primary italic">{myChosenTarget || '...'}</p>
                 </div>
               </div>
               <Button variant="ghost" onClick={handleAbort} className="w-full mt-6 text-destructive hover:text-destructive hover:bg-destructive/10 text-xs font-bold uppercase">Abort Match</Button>
@@ -352,7 +357,7 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
         {match.status === 'finished' && (
           <VictoryScreen 
             winnerName={match.winnerId === user?.uid ? 'YOU' : 'THE OPPONENT'} 
-            secretNumber={isPlayer1 ? match.p1Target : match.p2Target} 
+            secretNumber={myTarget} 
             totalAttempts={guessesData?.filter((g:any) => g.playerId === match.winnerId).length || 0}
             onRematch={() => {
               if (isHost) {
