@@ -12,34 +12,22 @@ A neon-infused, futuristic multiplayer number guessing game built with Next.js, 
 
 ## Getting Started
 
-1. **Clone the repository**:
-   ```bash
-   git clone <your-repo-url>
-   cd guess-the-number-duel
-   ```
-
-2. **Install dependencies**:
+1. **Install dependencies**:
    ```bash
    npm install
    ```
 
-3. **Set up Firebase**:
-   - Create a project in the [Firebase Console](https://console.firebase.google.com/).
-   - Enable Authentication (Anonymous).
-   - Enable Firestore Database.
-   - Update `src/firebase/config.ts` with your project credentials.
-
-4. **Run the development server**:
+2. **Run the development server**:
    ```bash
    npm run dev
    ```
 
-5. **Open the app**:
+3. **Open the app**:
    Navigate to [http://localhost:9002](http://localhost:9002).
 
 ## How to Push to GitHub
 
-To upload this code to your own GitHub repository, run these commands in your terminal:
+To upload this code to your repository at `https://github.com/aryan-devops/guess-the-number`, run these commands in your terminal:
 
 1. **Initialize Git**:
    ```bash
@@ -56,15 +44,13 @@ To upload this code to your own GitHub repository, run these commands in your te
    git commit -m "Initial commit: Guess The Number Duel Mode"
    ```
 
-4. **Create a new repository on GitHub** (e.g., named `guess-the-number-duel`).
-
-5. **Set the remote and branch**:
+4. **Set the remote and branch**:
    ```bash
    git branch -M main
-   git remote add origin <your-github-repo-url>
+   git remote add origin https://github.com/aryan-devops/guess-the-number.git
    ```
 
-6. **Push the code**:
+5. **Push the code**:
    ```bash
    git push -u origin main
    ```
