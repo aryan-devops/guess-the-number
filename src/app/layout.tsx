@@ -2,6 +2,8 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { FirebaseAuthHandler } from '@/components/auth/FirebaseAuthHandler';
 
 export const metadata: Metadata = {
   title: 'Guess The Number – Duel Mode',
@@ -21,7 +23,10 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased overflow-x-hidden min-h-screen">
-        {children}
+        <FirebaseClientProvider>
+          <FirebaseAuthHandler />
+          {children}
+        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>
