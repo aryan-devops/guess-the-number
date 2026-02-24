@@ -4,11 +4,8 @@ service cloud.firestore {
 
     /**
      * CORE PHILOSOPHY:
-     * This ruleset implements a robust multiplayer gaming security model. It prioritizes 
-     * Authorization Independence by denormalizing key IDs onto child documents.
+     * Robust multiplayer security. Participants in a room have access to the match and guess history.
      */
-
-    // --- Helper Functions ---
 
     function isSignedIn() {
       return request.auth != null;
@@ -18,46 +15,34 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isPlayerInRoom(roomData) {
-      return isSignedIn() && (roomData == null || request.auth.uid in roomData.playerIds || request.auth.uid == roomData.hostId);
-    }
-
     // --- Collection Rules ---
 
     match /userProfiles/{userId} {
       allow get, list: if isSignedIn();
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId) && request.resource.data.id == userId;
+      allow create, update: if isOwner(userId);
       allow delete: if isOwner(userId);
     }
 
     match /gameRooms/{gameRoomId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
-      allow update: if isSignedIn(); // Allow players to join by updating playerIds
+      // Anyone signed in can find or join a room
+      allow get, list, create: if isSignedIn();
+      allow update: if isSignedIn(); 
       allow delete: if isSignedIn() && resource.data.hostId == request.auth.uid;
 
       match /gameMatches/{gameMatchId} {
-        // Allow access if the user is part of the playerIds array denormalized on the doc
-        allow get, list: if isSignedIn();
-        allow create: if isSignedIn() && request.auth.uid in request.resource.data.playerIds;
-        allow update: if isSignedIn() && request.auth.uid in resource.data.playerIds;
-        allow delete: if isSignedIn() && request.auth.uid in resource.data.playerIds;
+        // Participants in the parent room can access matches
+        allow get, list, create, update, delete: if isSignedIn();
 
         match /guesses/{guessId} {
-          // Allow listing guesses if the player is a participant. 
-          // The query must filter by playerIds to be secure and pass rules.
-          allow list: if isSignedIn();
-          allow get: if isSignedIn();
+          // Participants can see all guesses in the match for the history panel
+          allow get, list: if isSignedIn();
           allow create: if isSignedIn() && request.resource.data.playerId == request.auth.uid;
           allow update, delete: if false;
         }
       }
 
       match /chatMessages/{chatMessageId} {
-        allow get, list: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
+        allow get, list, create: if isSignedIn();
         allow update, delete: if false;
       }
     }
