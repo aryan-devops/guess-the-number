@@ -1,4 +1,3 @@
-
 "use client"
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,7 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Timer, Hash, MessageSquare, Send, Users, ShieldAlert, Zap, Loader2 } from 'lucide-react';
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, setDoc, updateDoc, collection, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, collection, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface DuelGameContainerProps {
@@ -29,9 +28,13 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
   const { data: match } = useDoc(matchRef as any);
 
   const guessesQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, 'gameRooms', roomId, 'gameMatches', 'currentMatch', 'guesses'), orderBy('timestamp', 'desc'));
-  }, [db, roomId]);
+    if (!db || !user) return null;
+    return query(
+      collection(db, 'gameRooms', roomId, 'gameMatches', 'currentMatch', 'guesses'), 
+      where('playerIds', 'array-contains', user.uid),
+      orderBy('timestamp', 'desc')
+    );
+  }, [db, roomId, user?.uid]);
   const { data: guessesData } = useCollection(guessesQuery);
 
   const isHost = user?.uid === room.hostId;
@@ -49,6 +52,7 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
         roomId,
         player1Id: room.playerIds[0],
         player2Id: room.playerIds[1],
+        playerIds: [room.playerIds[0], room.playerIds[1]],
         targetNumber: target,
         status: 'in-progress',
         currentTurnPlayerId: room.playerIds[0],
@@ -62,7 +66,7 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
 
       updateDoc(doc(db, 'gameRooms', roomId), { status: 'in-game' });
     }
-  }, [isHost, room.status, match, db, roomId]);
+  }, [isHost, room.status, match, db, roomId, room.playerIds]);
 
   // Turn Timer
   useEffect(() => {
@@ -76,7 +80,6 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
       setTimeLeft(remaining);
 
       if (remaining === 0 && isMyTurn && db) {
-        // Auto-skip or random guess on timeout
         handleGuess(Math.floor(Math.random() * 100) + 1);
       }
     }, 1000);
@@ -85,16 +88,15 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
   }, [match, isMyTurn, db]);
 
   const handleGuess = async (val: number) => {
-    if (!isMyTurn || !db || match?.status !== 'in-progress') return;
+    if (!isMyTurn || !db || match?.status !== 'in-progress' || !user) return;
 
     const hint = getHint(val, match.targetNumber);
     const guessId = Math.random().toString(36).substring(7);
     const guessRef = doc(db, 'gameRooms', roomId, 'gameMatches', 'currentMatch', 'guesses', guessId);
 
-    await setDoc(guessRef, {
+    setDoc(guessRef, {
       playerId: user.uid,
-      player1Id: match.player1Id,
-      player2Id: match.player2Id,
+      playerIds: match.playerIds,
       guess: val,
       feedback: hint,
       timestamp: serverTimestamp(),
@@ -110,7 +112,7 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
     if (hint === 'Too High') newMax = Math.min(newMax, val - 1);
     if (hint === 'Too Low') newMin = Math.max(newMin, val + 1);
 
-    await updateDoc(matchRef!, {
+    updateDoc(matchRef!, {
       currentTurnPlayerId: nextTurnId,
       turnStartTime: serverTimestamp(),
       status: isWin ? 'finished' : 'in-progress',
@@ -131,7 +133,7 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
         </motion.div>
         <h2 className="text-3xl font-black text-white mb-2 uppercase italic">Awaiting Challenger</h2>
         <p className="text-muted-foreground mb-8">Share the room code with an opponent to begin synchronization.</p>
-        <div className="bg-white/5 border border-white/10 px-10 py-4 rounded-2xl text-4xl font-black tracking-widest text-primary glow-magenta">
+        <div className="bg-white/5 border border-white/10 px-10 py-4 rounded-2xl text-4xl font-black tracking-widest text-primary glow-magenta uppercase">
           {roomId}
         </div>
       </div>
@@ -252,7 +254,7 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
             onRematch={() => {
               if (isHost) {
                 updateDoc(doc(db, 'gameRooms', roomId), { status: 'ready', updatedAt: serverTimestamp() });
-                setDoc(matchRef!, {}, { merge: false }); // Reset match
+                setDoc(matchRef!, {}, { merge: false });
               }
             }}
           />
