@@ -1,7 +1,5 @@
-
 "use client"
 import React, { useEffect, useState } from 'react';
-import { guessNumberAIFlow, AiGuessInput } from '@/ai/flows/ai-opponent-practice-mode';
 import { motion } from 'framer-motion';
 import { Bot } from 'lucide-react';
 
@@ -30,30 +28,37 @@ export const AIPlayer = ({
     if (isActive && !isThinking) {
       const triggerGuess = async () => {
         setIsThinking(true);
-        // Simulate thinking time
-        await new Promise(r => setTimeout(r, 2000));
+        // Simulate thinking time for realism
+        await new Promise(r => setTimeout(r, 1500 + Math.random() * 1000));
         
-        try {
-          const result = await guessNumberAIFlow({
-            currentMin,
-            currentMax,
-            difficulty,
-            totalAttempts,
-            maxAttempts
-          });
-          onGuess(result.guess, result.reasoning || '');
-        } catch (error) {
-          console.error("AI Error:", error);
-          // Fallback guess
-          onGuess(Math.floor((currentMin + currentMax) / 2), "I had a glitch, so I'm guessing the middle!");
-        } finally {
-          setIsThinking(false);
+        // Local AI Logic (Replaces Genkit Flow)
+        let guess: number;
+        let reasoning: string;
+
+        if (difficulty === 'easy') {
+          // Easy: Random guess in the current known range
+          guess = Math.floor(Math.random() * (currentMax - currentMin + 1)) + currentMin;
+          reasoning = "I'm feeling lucky with this random pick!";
+        } else if (difficulty === 'medium') {
+          // Medium: Binary search (middle point)
+          guess = Math.floor((currentMin + currentMax) / 2);
+          reasoning = "Targeting the midpoint to narrow down the possibilities.";
+        } else {
+          // Hard: Optimized binary search with specific commentary
+          guess = Math.floor((currentMin + currentMax) / 2);
+          reasoning = `Based on the range ${currentMin}-${currentMax}, ${guess} is the mathematically optimal choice to eliminate half the remaining numbers.`;
         }
+
+        // Ensure guess is valid (integers only, within range)
+        guess = Math.max(currentMin, Math.min(currentMax, Math.round(guess)));
+        
+        onGuess(guess, reasoning);
+        setIsThinking(false);
       };
 
       triggerGuess();
     }
-  }, [isActive, currentMin, currentMax, difficulty, totalAttempts, maxAttempts, onGuess]);
+  }, [isActive, currentMin, currentMax, difficulty, totalAttempts, maxAttempts, onGuess, isThinking]);
 
   if (!isActive) return null;
 
