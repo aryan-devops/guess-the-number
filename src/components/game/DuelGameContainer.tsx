@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HistoryPanel } from './HistoryPanel';
 import { VictoryScreen } from './VictoryScreen';
@@ -7,10 +7,9 @@ import { getHint } from '@/lib/game-utils';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
-import { Timer, Hash, MessageSquare, Send, Users, ShieldAlert, Zap, Loader2 } from 'lucide-react';
+import { Timer, Hash, ShieldAlert, Zap, Loader2, Users } from 'lucide-react';
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, setDoc, updateDoc, collection, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
 
 interface DuelGameContainerProps {
   room: any;
@@ -20,22 +19,21 @@ interface DuelGameContainerProps {
 export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
   const db = useFirestore();
   const { user } = useUser();
-  const { toast } = useToast();
   const [guessInput, setGuessInput] = useState('');
   const [timeLeft, setTimeLeft] = useState(15);
 
   const matchRef = useMemo(() => (db ? doc(db, 'gameRooms', roomId, 'gameMatches', 'currentMatch') : null), [db, roomId]);
-  const { data: match } = useDoc(matchRef as any);
+  const { data: match, isLoading: isMatchLoading } = useDoc(matchRef as any);
 
-  // Stabilize the query and ensure it only runs when the user ID is present
+  // Securely fetch guesses only if user is part of the match
   const guessesQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid || !roomId) return null;
+    if (!db || !user?.uid || !roomId || !match) return null;
     return query(
       collection(db, 'gameRooms', roomId, 'gameMatches', 'currentMatch', 'guesses'), 
       where('playerIds', 'array-contains', user.uid),
       orderBy('timestamp', 'desc')
     );
-  }, [db, roomId, user?.uid]);
+  }, [db, roomId, user?.uid, match?.id]);
   
   const { data: guessesData } = useCollection(guessesQuery);
 
@@ -45,12 +43,15 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
   const isMyTurn = match?.currentTurnPlayerId === user?.uid;
   const opponentId = isPlayer1 ? room.playerIds[1] : room.playerIds[0];
 
-  // Initialize Match
+  // Initialize Match (Host only)
   useEffect(() => {
-    if (isHost && room.status === 'ready' && !match && db) {
+    if (isHost && room.status === 'ready' && !match && !isMatchLoading && db) {
+      console.log("Duel: Initializing match for room", roomId);
       const target = Math.floor(Math.random() * 100) + 1;
-      const playerIdsArray = [room.playerIds[0], room.playerIds[1]];
+      const playerIdsArray = [room.playerIds[0], room.playerIds[1]].filter(Boolean);
       
+      if (playerIdsArray.length < 2) return;
+
       setDoc(doc(db, 'gameRooms', roomId, 'gameMatches', 'currentMatch'), {
         id: 'currentMatch',
         roomId,
@@ -68,39 +69,43 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
         lastGuessRangeMax: 100
       });
 
-      updateDoc(doc(db, 'gameRooms', roomId), { status: 'in-game' });
+      updateDoc(doc(db, 'gameRooms', roomId), { status: 'in-game', updatedAt: serverTimestamp() });
     }
-  }, [isHost, room.status, match, db, roomId, room.playerIds]);
+  }, [isHost, room.status, match, isMatchLoading, db, roomId, room.playerIds]);
 
-  // Turn Timer
+  // Turn Timer logic
   useEffect(() => {
     if (match?.status !== 'in-progress') return;
 
     const interval = setInterval(() => {
       if (!match.turnStartTime) return;
-      const start = match.turnStartTime.toDate?.()?.getTime() || Date.now();
+      
+      // Handle Firebase timestamp vs local date
+      const start = match.turnStartTime?.toDate?.()?.getTime() || Date.now();
       const elapsed = Math.floor((Date.now() - start) / 1000);
       const remaining = Math.max(0, 15 - elapsed);
       setTimeLeft(remaining);
 
+      // Auto-submit if time runs out on my turn
       if (remaining === 0 && isMyTurn && db) {
         handleGuess(Math.floor(Math.random() * 100) + 1);
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [match, isMyTurn, db]);
+  }, [match?.turnStartTime, isMyTurn, db]);
 
   const handleGuess = async (val: number) => {
-    if (!isMyTurn || !db || match?.status !== 'in-progress' || !user) return;
+    if (!isMyTurn || !db || match?.status !== 'in-progress' || !user || isNaN(val)) return;
 
     const hint = getHint(val, match.targetNumber);
     const guessId = Math.random().toString(36).substring(7);
     const guessRef = doc(db, 'gameRooms', roomId, 'gameMatches', 'currentMatch', 'guesses', guessId);
 
+    // Save guess with membership array for security
     setDoc(guessRef, {
       playerId: user.uid,
-      playerIds: match.playerIds, // Critical for list authorization
+      playerIds: match.playerIds,
       guess: val,
       feedback: hint,
       timestamp: serverTimestamp(),
@@ -110,8 +115,8 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
     const isWin = hint === 'Correct';
     const nextTurnId = isWin ? match.currentTurnPlayerId : opponentId;
     
-    let newMin = match.lastGuessRangeMin;
-    let newMax = match.lastGuessRangeMax;
+    let newMin = match.lastGuessRangeMin || 1;
+    let newMax = match.lastGuessRangeMax || 100;
 
     if (hint === 'Too High') newMax = Math.min(newMax, val - 1);
     if (hint === 'Too Low') newMin = Math.max(newMin, val + 1);
@@ -123,7 +128,8 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
       winnerId: isWin ? user.uid : null,
       loserId: isWin ? opponentId : null,
       lastGuessRangeMin: newMin,
-      lastGuessRangeMax: newMax
+      lastGuessRangeMax: newMax,
+      updatedAt: serverTimestamp()
     });
 
     setGuessInput('');
@@ -144,10 +150,11 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
     );
   }
 
-  if (!match) {
+  if (isMatchLoading || !match) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex-1 flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground animate-pulse">Syncing Neural Link...</p>
       </div>
     );
   }
@@ -168,10 +175,10 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
         </div>
 
         <div className="flex items-center gap-8">
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center min-w-[120px]">
             <div className="flex items-center gap-2 mb-1">
               <Timer className="w-4 h-4 text-primary" />
-              <span className="text-xs uppercase font-bold text-muted-foreground tracking-widest">Neural Link Time</span>
+              <span className="text-xs uppercase font-bold text-muted-foreground tracking-widest">Link Time</span>
             </div>
             <div className="text-3xl font-bold font-mono text-white tracking-widest">
               00:{timeLeft.toString().padStart(2, '0')}
@@ -197,12 +204,16 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
 
         <div className="lg:col-span-6 flex flex-col items-center">
           <div className="mb-10 w-full max-w-sm">
-             <div className="glass-card p-10 rounded-3xl border-white/10 flex flex-col items-center gap-6 relative">
+             <div className="glass-card p-10 rounded-3xl border-white/10 flex flex-col items-center gap-6 relative overflow-hidden">
                 {!isMyTurn && (
-                  <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-3xl">
-                    <motion.div animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 1.5 }} className="flex flex-col items-center gap-4">
-                      <ShieldAlert className="w-12 h-12 text-accent" />
-                      <p className="text-xs font-bold text-accent uppercase tracking-widest italic">Opponent is guessing...</p>
+                  <div className="absolute inset-0 bg-background/80 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-3xl p-6 text-center">
+                    <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center gap-4">
+                      <div className="relative">
+                        <ShieldAlert className="w-12 h-12 text-accent" />
+                        <motion.div animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }} transition={{ repeat: Infinity, duration: 2 }} className="absolute inset-0 bg-accent/40 rounded-full blur-xl" />
+                      </div>
+                      <p className="text-sm font-black text-accent uppercase tracking-widest italic">Opponent is guessing...</p>
+                      <p className="text-[10px] text-muted-foreground uppercase leading-relaxed font-mono">Input stream locked until neural turn completion.</p>
                     </motion.div>
                   </div>
                 )}
@@ -216,6 +227,7 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
                     disabled={!isMyTurn}
                     className="h-20 bg-white/5 border-white/10 text-center text-4xl font-black text-white rounded-2xl focus:border-primary/50"
                     placeholder="00"
+                    onKeyDown={(e) => e.key === 'Enter' && handleGuess(parseInt(guessInput))}
                   />
                 </div>
                 <Button 
@@ -257,8 +269,9 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
             totalAttempts={guessesData?.length || 0}
             onRematch={() => {
               if (isHost) {
+                // Host resets the room status to trigger a new match
                 updateDoc(doc(db, 'gameRooms', roomId), { status: 'ready', updatedAt: serverTimestamp() });
-                // We typically delete the currentMatch doc or reset it to trigger a new match
+                // Remove the old match doc to allow useEffect to trigger a new creation
                 setDoc(matchRef!, {}, { merge: false });
               }
             }}

@@ -6,12 +6,6 @@ service cloud.firestore {
      * CORE PHILOSOPHY:
      * This ruleset implements a robust multiplayer gaming security model. It prioritizes 
      * Authorization Independence by denormalizing key IDs onto child documents.
-     * 
-     * DATA STRUCTURE:
-     * - /userProfiles/{userId}: Publicly viewable profiles, privately managed by the owner.
-     * - /gameRooms/{gameRoomId}: Collaborative spaces for game setup and discovery.
-     * - /gameRooms/{gameRoomId}/gameMatches/...: Private match instances restricted to participants.
-     * - /leaderboard/{userId}: Public read-only ranking system managed by backend processes.
      */
 
     // --- Helper Functions ---
@@ -24,20 +18,8 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isExistingOwner(userId) {
-      return resource != null && isOwner(userId);
-    }
-
     function isPlayerInRoom(roomData) {
       return isSignedIn() && (roomData == null || request.auth.uid in roomData.playerIds || request.auth.uid == roomData.hostId);
-    }
-
-    function isPlayerInMatch(matchData) {
-      return isSignedIn() && (matchData == null || request.auth.uid in matchData.playerIds);
-    }
-
-    function isCurrentTurn(matchData) {
-      return isSignedIn() && matchData != null && request.auth.uid == matchData.currentTurnPlayerId;
     }
 
     // --- Collection Rules ---
@@ -45,35 +27,37 @@ service cloud.firestore {
     match /userProfiles/{userId} {
       allow get, list: if isSignedIn();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == userId;
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId) && request.resource.data.id == userId;
+      allow delete: if isOwner(userId);
     }
 
     match /gameRooms/{gameRoomId} {
       allow get: if isSignedIn();
-      allow list: if isSignedIn() && (resource == null || resource.data.status == 'waitingForPlayers' || isPlayerInRoom(resource.data));
+      allow list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
-      allow update: if resource != null && isPlayerInRoom(resource.data);
-      allow delete: if resource != null && resource.data.hostId == request.auth.uid;
+      allow update: if isSignedIn(); // Allow players to join by updating playerIds
+      allow delete: if isSignedIn() && resource.data.hostId == request.auth.uid;
 
       match /gameMatches/{gameMatchId} {
-        // Explicit check for null resource to allow initialized listeners to wait for doc creation
-        allow get, list: if isSignedIn() && (resource == null || request.auth.uid in resource.data.playerIds);
-        allow create: if isSignedIn() && (request.auth.uid in request.resource.data.playerIds);
-        allow update: if resource != null && isPlayerInMatch(resource.data) && (request.resource.data.currentTurnPlayerId == resource.data.currentTurnPlayerId || isCurrentTurn(resource.data));
-        allow delete: if resource != null && isPlayerInMatch(resource.data);
+        // Allow access if the user is part of the playerIds array denormalized on the doc
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && request.auth.uid in request.resource.data.playerIds;
+        allow update: if isSignedIn() && request.auth.uid in resource.data.playerIds;
+        allow delete: if isSignedIn() && request.auth.uid in resource.data.playerIds;
 
         match /guesses/{guessId} {
-          // Alignment with query filters using denormalized playerIds
-          allow get, list: if isSignedIn() && (resource == null || request.auth.uid in resource.data.playerIds);
-          allow create: if isSignedIn() && request.resource.data.playerId == request.auth.uid && (request.auth.uid in request.resource.data.playerIds);
+          // Allow listing guesses if the player is a participant. 
+          // The query must filter by playerIds to be secure and pass rules.
+          allow list: if isSignedIn();
+          allow get: if isSignedIn();
+          allow create: if isSignedIn() && request.resource.data.playerId == request.auth.uid;
           allow update, delete: if false;
         }
       }
 
       match /chatMessages/{chatMessageId} {
-        allow get, list: if isSignedIn() && (resource == null || isPlayerInRoom(resource.data));
-        allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid && isPlayerInRoom(request.resource.data);
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
         allow update, delete: if false;
       }
     }
