@@ -1,0 +1,520 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Stores information about a player's profile, including progression, social stats, and personalization settings.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The public display name of the player."
+        },
+        "email": {
+          "type": "string",
+          "description": "The player's email address, if provided through authentication.",
+          "format": "email"
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "URL to the player's profile picture.",
+          "format": "uri"
+        },
+        "winStreak": {
+          "type": "number",
+          "description": "The current consecutive number of games won by the player."
+        },
+        "xp": {
+          "type": "number",
+          "description": "Experience points earned by the player, contributing to their level progression."
+        },
+        "level": {
+          "type": "number",
+          "description": "The player's current progression level."
+        },
+        "badgeIds": {
+          "type": "array",
+          "description": "An array of unique identifiers for badges earned by the player.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "totalGamesPlayed": {
+          "type": "number",
+          "description": "The total number of games the player has participated in."
+        },
+        "totalWins": {
+          "type": "number",
+          "description": "The total number of games won by the player."
+        },
+        "totalLosses": {
+          "type": "number",
+          "description": "The total number of games lost by the player."
+        },
+        "averageGuessCount": {
+          "type": "number",
+          "description": "The average number of guesses it takes the player to win a game."
+        },
+        "lastOnlineAt": {
+          "type": "string",
+          "description": "Timestamp of the last time the user was online.",
+          "format": "date-time"
+        },
+        "preferredTheme": {
+          "type": "string",
+          "description": "The aesthetic theme chosen by the player (e.g., Neon, Cyberpunk)."
+        },
+        "sfxEnabled": {
+          "type": "boolean",
+          "description": "Indicates if sound effects are enabled for the player."
+        },
+        "musicEnabled": {
+          "type": "boolean",
+          "description": "Indicates if background music is enabled for the player."
+        }
+      },
+      "required": [
+        "id",
+        "displayName",
+        "winStreak",
+        "xp",
+        "level",
+        "badgeIds",
+        "totalGamesPlayed",
+        "totalWins",
+        "totalLosses",
+        "averageGuessCount",
+        "preferredTheme",
+        "sfxEnabled",
+        "musicEnabled"
+      ]
+    },
+    "GameRoom": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GameRoom",
+      "type": "object",
+      "description": "Manages the configuration and state of a multiplayer game room where players can join and play.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the GameRoom entity."
+        },
+        "hostId": {
+          "type": "string",
+          "description": "Reference to the UserProfile of the room's host. (Relationship: UserProfile 1:N GameRoom)"
+        },
+        "playerIds": {
+          "type": "array",
+          "description": "References to the UserProfile entities participating in the game room. (Relationship: UserProfile N:N GameRoom)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the game room (e.g., waiting for players, in-game, finished, expired, aborted)."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the room was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp of the last update to the room's state.",
+          "format": "date-time"
+        },
+        "expiresAt": {
+          "type": "string",
+          "description": "Timestamp when the room is scheduled to expire if inactive.",
+          "format": "date-time"
+        },
+        "minNumber": {
+          "type": "number",
+          "description": "The minimum possible number for the guessing range, set by the host."
+        },
+        "maxNumber": {
+          "type": "number",
+          "description": "The maximum possible number for the guessing range, set by the host."
+        },
+        "turnTimerSeconds": {
+          "type": "number",
+          "description": "The duration in seconds allocated for each player's turn."
+        },
+        "maxAttemptsPerPlayer": {
+          "type": "number",
+          "description": "The maximum number of guesses each player is allowed in the game."
+        },
+        "suddenDeathMode": {
+          "type": "boolean",
+          "description": "Indicates if 'Sudden Death' mode is active, where players have fewer attempts or a shorter timer."
+        },
+        "currentGameMatchId": {
+          "type": "string",
+          "description": "Reference to the currently active GameMatch entity within this room. (Relationship: GameMatch 1:N GameRoom)"
+        }
+      },
+      "required": [
+        "id",
+        "hostId",
+        "playerIds",
+        "status",
+        "createdAt",
+        "updatedAt",
+        "minNumber",
+        "maxNumber",
+        "turnTimerSeconds",
+        "maxAttemptsPerPlayer",
+        "suddenDeathMode"
+      ]
+    },
+    "GameMatch": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GameMatch",
+      "type": "object",
+      "description": "Represents a single instance of a 'Guess The Number' duel game, tracking its state, player turns, and guesses.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the GameMatch entity."
+        },
+        "roomId": {
+          "type": "string",
+          "description": "Reference to the GameRoom in which this match is being played. (Relationship: GameRoom 1:N GameMatch)"
+        },
+        "player1Id": {
+          "type": "string",
+          "description": "Reference to the UserProfile of the first player in the match. (Relationship: UserProfile 1:N GameMatch)"
+        },
+        "player2Id": {
+          "type": "string",
+          "description": "Reference to the UserProfile of the second player in the match. (Relationship: UserProfile 1:N GameMatch)"
+        },
+        "targetNumber": {
+          "type": "number",
+          "description": "The secret number that players must guess."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the game match (e.g., pending, in-progress, finished, aborted)."
+        },
+        "currentTurnPlayerId": {
+          "type": "string",
+          "description": "Reference to the UserProfile whose turn it currently is. (Relationship: UserProfile 1:N GameMatch)"
+        },
+        "turnStartTime": {
+          "type": "string",
+          "description": "Server timestamp indicating when the current player's turn began.",
+          "format": "date-time"
+        },
+        "guesses": {
+          "type": "array",
+          "description": "A chronological list of all guesses made in the match.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "player1AttemptsLeft": {
+          "type": "number",
+          "description": "The number of attempts remaining for Player 1."
+        },
+        "player2AttemptsLeft": {
+          "type": "number",
+          "description": "The number of attempts remaining for Player 2."
+        },
+        "winnerId": {
+          "type": "string",
+          "description": "Reference to the UserProfile of the player who won the match. (Relationship: UserProfile 1:N GameMatch)"
+        },
+        "loserId": {
+          "type": "string",
+          "description": "Reference to the UserProfile of the player who lost the match. (Relationship: UserProfile 1:N GameMatch)"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Timestamp when the match officially started.",
+          "format": "date-time"
+        },
+        "endTime": {
+          "type": "string",
+          "description": "Timestamp when the match concluded.",
+          "format": "date-time"
+        },
+        "lastGuessRangeMin": {
+          "type": "number",
+          "description": "The minimum value of the dynamically narrowed guessing range after the last guess feedback."
+        },
+        "lastGuessRangeMax": {
+          "type": "number",
+          "description": "The maximum value of the dynamically narrowed guessing range after the last guess feedback."
+        }
+      },
+      "required": [
+        "id",
+        "roomId",
+        "player1Id",
+        "player2Id",
+        "targetNumber",
+        "status",
+        "guesses",
+        "player1AttemptsLeft",
+        "player2AttemptsLeft",
+        "startTime"
+      ]
+    },
+    "Guess": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Guess",
+      "type": "object",
+      "description": "Represents a single guess made by a player in a GameMatch.",
+      "properties": {
+        "playerId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who made this guess. (Relationship: UserProfile 1:N Guess)"
+        },
+        "guess": {
+          "type": "number",
+          "description": "The number guessed by the player."
+        },
+        "feedback": {
+          "type": "string",
+          "description": "Feedback provided for the guess (e.g., 'high', 'low', 'correct')."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp when the guess was submitted.",
+          "format": "date-time"
+        },
+        "turnNumber": {
+          "type": "number",
+          "description": "The sequential turn number in the match when this guess was made."
+        }
+      },
+      "required": [
+        "playerId",
+        "guess",
+        "feedback",
+        "timestamp",
+        "turnNumber"
+      ]
+    },
+    "ChatMessage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ChatMessage",
+      "type": "object",
+      "description": "Stores individual chat messages exchanged between players within a game room.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ChatMessage entity."
+        },
+        "roomId": {
+          "type": "string",
+          "description": "Reference to the GameRoom where this message was sent. (Relationship: GameRoom 1:N ChatMessage)"
+        },
+        "senderId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who sent this message. (Relationship: UserProfile 1:N ChatMessage)"
+        },
+        "message": {
+          "type": "string",
+          "description": "The content of the chat message."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp when the message was sent.",
+          "format": "date-time"
+        },
+        "emojiReaction": {
+          "type": "string",
+          "description": "An optional emoji reaction associated with the message."
+        }
+      },
+      "required": [
+        "id",
+        "roomId",
+        "senderId",
+        "message",
+        "timestamp"
+      ]
+    },
+    "LeaderboardEntry": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LeaderboardEntry",
+      "type": "object",
+      "description": "Represents a player's entry on the global leaderboard, summarizing their key performance indicators. This entity is designed for optimized leaderboard display.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the LeaderboardEntry entity, typically matching the userId."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the UserProfile this leaderboard entry belongs to. (Relationship: UserProfile 1:1 LeaderboardEntry)"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The player's display name, denormalized for quick leaderboard rendering."
+        },
+        "totalWins": {
+          "type": "number",
+          "description": "The total number of games won by the player, used for ranking."
+        },
+        "winStreak": {
+          "type": "number",
+          "description": "The player's current consecutive win streak, used for ranking."
+        },
+        "xp": {
+          "type": "number",
+          "description": "The player's experience points, used for ranking."
+        },
+        "level": {
+          "type": "number",
+          "description": "The player's current level, used for ranking."
+        },
+        "lastUpdated": {
+          "type": "string",
+          "description": "Timestamp of the last update to this leaderboard entry.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "displayName",
+        "totalWins",
+        "winStreak",
+        "xp",
+        "level",
+        "lastUpdated"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/userProfiles/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores individual player profiles. Each document is owned by a specific user identified by `userId`. Read access is public for general information (e.g., for opponent display), but write access is restricted to the owning user (`request.auth.uid == userId`).",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, matching their Firebase Authentication UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/gameRooms/{gameRoomId}",
+        "definition": {
+          "entityName": "GameRoom",
+          "schema": {
+            "$ref": "#/backend/entities/GameRoom"
+          },
+          "description": "Manages multiplayer game room configurations and state. `hostId` and `playerIds` (a membership map) fields are used for authorization. Listing is allowed for rooms with `status == 'waitingForPlayers'` (QAP compliant). Includes `hostId` and `playerIds` for authorization.",
+          "params": [
+            {
+              "name": "gameRoomId",
+              "description": "The unique identifier for a game room."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/gameRooms/{gameRoomId}/gameMatches/{gameMatchId}",
+        "definition": {
+          "entityName": "GameMatch",
+          "schema": {
+            "$ref": "#/backend/entities/GameMatch"
+          },
+          "description": "Represents a single instance of a 'Guess The Number' duel game within a room. Includes denormalized `player1Id` and `player2Id` from the parent `GameRoom` to ensure authorization independence without `get()` calls. Only these players can read/update the match state.",
+          "params": [
+            {
+              "name": "gameRoomId",
+              "description": "The unique identifier of the parent game room."
+            },
+            {
+              "name": "gameMatchId",
+              "description": "The unique identifier for a specific game match within the room."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/gameRooms/{gameRoomId}/gameMatches/{gameMatchId}/guesses/{guessId}",
+        "definition": {
+          "entityName": "Guess",
+          "schema": {
+            "$ref": "#/backend/entities/Guess"
+          },
+          "description": "Stores individual guesses made by players in a GameMatch. Includes denormalized `player1Id` and `player2Id` from the parent `GameMatch` for authorization independence. Players can only create their own guesses (`playerId`), and all participating players can read all guesses.",
+          "params": [
+            {
+              "name": "gameRoomId",
+              "description": "The unique identifier of the parent game room."
+            },
+            {
+              "name": "gameMatchId",
+              "description": "The unique identifier of the parent game match."
+            },
+            {
+              "name": "guessId",
+              "description": "The unique identifier for a specific guess."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/gameRooms/{gameRoomId}/chatMessages/{chatMessageId}",
+        "definition": {
+          "entityName": "ChatMessage",
+          "schema": {
+            "$ref": "#/backend/entities/ChatMessage"
+          },
+          "description": "Stores chat messages exchanged within a game room. Includes denormalized `playerIds` and `hostId` from the parent `GameRoom` for authorization independence. Only players participating in the room can send or read messages.",
+          "params": [
+            {
+              "name": "gameRoomId",
+              "description": "The unique identifier of the parent game room."
+            },
+            {
+              "name": "chatMessageId",
+              "description": "The unique identifier for a specific chat message."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/leaderboard/{userId}",
+        "definition": {
+          "entityName": "LeaderboardEntry",
+          "schema": {
+            "$ref": "#/backend/entities/LeaderboardEntry"
+          },
+          "description": "A public collection for displaying global player rankings. Optimized for listing. Anyone can read, but only trusted backend services can write or update entries, ensuring data integrity. `id` matches `userId`.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, matching their Firebase Authentication UID, for whom this leaderboard entry is."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The proposed Firestore structure prioritizes Authorization Independence and Structural Segregation to ensure robust security rules and simplified debugging, adhering to all core design principles and strategy mandates. \n\n1.  **Authorization Independence (Denormalization):**\n    *   For `GameMatch` documents located at `/gameRooms/{gameRoomId}/gameMatches/{gameMatchId}`, the critical authorization fields `player1Id` and `player2Id` (identifying the active players) are denormalized directly from the conceptual room participants. This ensures that security rules for `GameMatch` can validate user access (e.g., `request.auth.uid == resource.data.player1Id || request.auth.uid == resource.data.player2Id`) without performing a `get()` operation on the parent `GameRoom` document. This allows for atomic operations (like creating a room and its first match simultaneously) and prevents rule complexity.\n    *   Similarly, for `Guess` documents at `/gameRooms/{gameRoomId}/gameMatches/{gameMatchId}/guesses/{guessId}`, the `player1Id` and `player2Id` from the parent `GameMatch` are denormalized into each `Guess` document. This allows rules to verify that only a participating player can make a guess, and all participating players can read all guesses, again without relying on a `get()` call to the `GameMatch` or `GameRoom`.\n    *   For `ChatMessage` documents at `/gameRooms/{gameRoomId}/chatMessages/{chatMessageId}`, the `playerIds` array and `hostId` from the parent `GameRoom` are denormalized into each `ChatMessage`. This enables rules to efficiently check if `request.auth.uid` is part of `resource.data.playerIds` (or `resource.data.hostId`) for both sending and reading messages, maintaining authorization independence.\n\n2.  **QAPs (Secure List Operations):**\n    *   **`/userProfiles/{userId}`:** This collection allows authenticated users to read any profile for display purposes (e.g., opponent info, leaderboard). Write access is restricted to the owning user (`request.auth.uid == userId`). Listing is generally not done on this collection directly but by explicit `userId` or via `leaderboard/{userId}`.\n    *   **`/gameRooms/{gameRoomId}`:** This is a crucial collection for discovering active games. By segregating rooms into a top-level collection, we can implement QAP-compliant rules. Rules will explicitly allow `list` operations for documents where `resource.data.status == 'waitingForPlayers'`. This enables players to browse available rooms without exposing private room details or requiring client-side filtering of unauthorized rooms. Once a player is part of a room (i.e., `request.auth.uid in resource.data.playerIds`), they can read and potentially update (if host) the specific room document. The `playerIds` field also acts as a membership map.\n    *   **`/leaderboard/{userId}`:** This collection is explicitly designed for public listing (`list` queries) to display global rankings. Security rules will allow anyone to read, but only backend processes (e.g., Cloud Functions) to write/update, ensuring data integrity and allowing QAP-compliant public leaderboard display.\n    *   Subcollections like `gameMatches`, `guesses`, and `chatMessages` are not typically 'listed' broadly. Instead, they are accessed within the context of a specific `gameRoomId` and `gameMatchId` by authorized players (whose authorization context is denormalized within the documents themselves).\n\n3.  **Structural Segregation:** Data with differing security postures is separated. For example, `UserProfile` (private owner, public viewable fields) and `LeaderboardEntry` (fully public, backend-managed) are distinct collections, simplifying their respective security rules. Game-related data is nested within `gameRooms`, ensuring a clear hierarchy and scope for access.\n\n4.  **Access Modeling:** Path-based ownership (`/userProfiles/{userId}`) is used for private user data. Hierarchical paths (`/gameRooms/{gameRoomId}/gameMatches/{gameMatchId}`) are used for 1:N relationships, with denormalization handling the authorization independence. Collaborative data in `GameRoom` and `ChatMessage` uses membership maps (`playerIds`).\n\n5.  **Data Clarity:** Explicit `status` fields are used in `GameRoom` and `GameMatch` for clear state management. Descriptive wildcards (`{userId}`, `{gameRoomId}`, etc.) are used for path parameters."
+  }
+}
