@@ -27,14 +27,16 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
   const matchRef = useMemo(() => (db ? doc(db, 'gameRooms', roomId, 'gameMatches', 'currentMatch') : null), [db, roomId]);
   const { data: match } = useDoc(matchRef as any);
 
+  // Stabilize the query and ensure it only runs when the user ID is present
   const guessesQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    if (!db || !user?.uid || !roomId) return null;
     return query(
       collection(db, 'gameRooms', roomId, 'gameMatches', 'currentMatch', 'guesses'), 
       where('playerIds', 'array-contains', user.uid),
       orderBy('timestamp', 'desc')
     );
   }, [db, roomId, user?.uid]);
+  
   const { data: guessesData } = useCollection(guessesQuery);
 
   const isHost = user?.uid === room.hostId;
@@ -47,12 +49,14 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
   useEffect(() => {
     if (isHost && room.status === 'ready' && !match && db) {
       const target = Math.floor(Math.random() * 100) + 1;
+      const playerIdsArray = [room.playerIds[0], room.playerIds[1]];
+      
       setDoc(doc(db, 'gameRooms', roomId, 'gameMatches', 'currentMatch'), {
         id: 'currentMatch',
         roomId,
         player1Id: room.playerIds[0],
         player2Id: room.playerIds[1],
-        playerIds: [room.playerIds[0], room.playerIds[1]],
+        playerIds: playerIdsArray,
         targetNumber: target,
         status: 'in-progress',
         currentTurnPlayerId: room.playerIds[0],
@@ -96,7 +100,7 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
 
     setDoc(guessRef, {
       playerId: user.uid,
-      playerIds: match.playerIds,
+      playerIds: match.playerIds, // Critical for list authorization
       guess: val,
       feedback: hint,
       timestamp: serverTimestamp(),
@@ -254,6 +258,7 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
             onRematch={() => {
               if (isHost) {
                 updateDoc(doc(db, 'gameRooms', roomId), { status: 'ready', updatedAt: serverTimestamp() });
+                // We typically delete the currentMatch doc or reset it to trigger a new match
                 setDoc(matchRef!, {}, { merge: false });
               }
             }}
