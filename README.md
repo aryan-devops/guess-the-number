@@ -39,13 +39,32 @@ A neon-infused, futuristic multiplayer number guessing game built with Next.js, 
 
 ## How to Push to GitHub
 
-If you haven't initialized a repository yet:
+To upload this code to your own GitHub repository, run these commands in your terminal:
 
-```bash
-git init
-git add .
-git commit -m "Initial commit: Guess The Number Duel Mode"
-git branch -M main
-git remote add origin <your-github-repo-url>
-git push -u origin main
-```
+1. **Initialize Git**:
+   ```bash
+   git init
+   ```
+
+2. **Add all files**:
+   ```bash
+   git add .
+   ```
+
+3. **Commit the changes**:
+   ```bash
+   git commit -m "Initial commit: Guess The Number Duel Mode"
+   ```
+
+4. **Create a new repository on GitHub** (e.g., named `guess-the-number-duel`).
+
+5. **Set the remote and branch**:
+   ```bash
+   git branch -M main
+   git remote add origin <your-github-repo-url>
+   ```
+
+6. **Push the code**:
+   ```bash
+   git push -u origin main
+   ```
