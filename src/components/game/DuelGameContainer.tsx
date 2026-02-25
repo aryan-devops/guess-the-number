@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Timer, Hash, ShieldAlert, Zap, Loader2, Users, Lock, Unlock, AlertTriangle } from 'lucide-react';
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, setDoc, updateDoc, collection, serverTimestamp, query, orderBy, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, collection, serverTimestamp, query, orderBy, deleteDoc, limit } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 
 interface DuelGameContainerProps {
@@ -33,7 +33,8 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
     if (!db || !roomId || !match) return null;
     return query(
       collection(db, 'gameRooms', roomId, 'gameMatches', 'currentMatch', 'guesses'), 
-      orderBy('timestamp', 'desc')
+      orderBy('timestamp', 'desc'),
+      limit(3)
     );
   }, [db, roomId, match?.id]);
   
@@ -286,7 +287,14 @@ export const DuelGameContainer = ({ room, roomId }: DuelGameContainerProps) => {
 
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         <div className="lg:col-span-3 space-y-6 h-[500px] flex flex-col">
-          <HistoryPanel guesses={(guessesData || []).map(g => ({ ...g, hint: g.feedback, timestamp: g.timestamp?.toMillis() || Date.now(), player: g.playerId === user?.uid ? 'YOU' : 'OPP' }))} />
+          <HistoryPanel 
+            guesses={(guessesData || []).map(g => ({ 
+              ...g, 
+              hint: g.feedback, 
+              timestamp: g.timestamp?.toMillis() || Date.now(), 
+              player: g.playerId === user?.uid ? 'YOU' : 'OPP' 
+            }))} 
+          />
         </div>
 
         <div className="lg:col-span-6 flex flex-col items-center">
